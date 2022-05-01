@@ -24,70 +24,50 @@
 #include <mach/mach_time.h>
 #endif
 
-// Use POSIX realtime stuff
+// Use POSIX realtime stuff                                                          
+static inline nni_time via_clock_gettime(void)
+{
+ 	struct timespec ts;
+        nni_time        msec;
+
+        if (clock_gettime(NNG_USE_CLOCKID, &ts) != 0) {
+                // This should never ever occur.                                     
+		nni_panic("clock_gettime failed: %s", strerror(errno));
+        }
+
+	msec = ts.tv_sec;
+	msec *= 1000;
+        msec += (ts.tv_nsec / 1000000);
+        return (msec);
+}
+
 nni_time
 nni_clock(void)
 {
-	struct timespec ts;
-	nni_time        msec;
-
 #if __APPLE__
 
 #if defined(MAC_OS_X_VERSION_10_12) && __has_builtin(__builtin_available)
 	if (__builtin_available(macOS 10.12, *)) {
-		if (clock_gettime(NNG_USE_CLOCKID, &ts) != 0) {
-			// This should never ever occur.
-			nni_panic("clock_gettime failed: %s", strerror(errno));
-		}
-
-	  	msec = ts.tv_sec;
-	  	msec *= 1000;
-	  	msec += (ts.tv_nsec / 1000000);
-	  	return (msec);
+		return via_clock_gettime();
 	}
 #endif
 
-	// we could make this `__thread static` and read it only once,
-	// not sure it's worth it, since the check for "the first time"
-	// introduces potential cache misses and other ways of making this
-	// run only once are more involved.
-	mach_timebase_info_data_t time_base_info;
+	// we could use `__thread static` and read only once, not sure it's
+	// worth it, as the check for "the first time" incurs cache misses
+	// and other ways of making this run only once are more involved.
+	mach_timebase_info_data_t timebase_info;
 
 	// mach_continuous_time() is a better option, but it's only
-	// available since MacOS 10.12, for which we already use clock_gettime().
+	// available since MacOS 10.12, for which we use clock_gettime().
 	uint64_t absolute_time = mach_absolute_time();
     
-        mach_timebase_info(&time_base_info);
+        mach_timebase_info(&timebase_info);
 
-        return ((absolute_time * time_base_info.numer) / time_base_info.denom) / 10000000;
+        return ((absolute_time * timebase_info.numer) / timebase_info.denom) / 10000000;
 	
-#if 0
-	// This is an alternative that is popular because it uses an almost
-	// equivalent call from Mach kernel, but it's _slow_. I left it here
-	// for us all to consider it as an option. I would not use it.
-	//
-	// it needs:
-	//#include <mach/clock.h>
-
-	clock_serv_t cclock;
-	mach_timespec_t mts;
-	host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
-	clock_get_time(cclock, &mts);
-	mach_port_deallocate(mach_task_self(), cclock);
-	return (uint64_t)mts.tv_sec * 1000 + mts.tv_nsec / 1000000;
-#endif
-
 #else
 
-	if (clock_gettime(NNG_USE_CLOCKID, &ts) != 0) {
-		// This should never ever occur.
-		nni_panic("clock_gettime failed: %s", strerror(errno));
-	}
-
-	msec = ts.tv_sec;
-	msec *= 1000;
-	msec += (ts.tv_nsec / 1000000);
-	return (msec);
+	return via_clock_gettime();
 
 #endif	
 }
