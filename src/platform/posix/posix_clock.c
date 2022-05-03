@@ -25,51 +25,48 @@
 #endif
 
 // Use POSIX realtime stuff                                                          
-static inline nni_time via_clock_gettime(void)
-{
- 	struct timespec ts;
-        nni_time        msec;
-
-        if (clock_gettime(NNG_USE_CLOCKID, &ts) != 0) {
-                // This should never ever occur.                                     
-		nni_panic("clock_gettime failed: %s", strerror(errno));
-        }
-
-	msec = ts.tv_sec;
-	msec *= 1000;
-        msec += (ts.tv_nsec / 1000000);
-        return (msec);
-}
-
 nni_time
 nni_clock(void)
 {
+        struct timespec ts;
+        nni_time        msec;
+
 #if __APPLE__
 
+        int supported = 0;
+
 #if defined(MAC_OS_X_VERSION_10_12) && __has_builtin(__builtin_available)
-	if (__builtin_available(macOS 10.12, *)) {
-		return via_clock_gettime();
-	}
+        if (__builtin_available(macOS 10.12, *)) {
+                supported = 1;
+        }
 #endif
 
-	// we could use `__thread static` and read only once, not sure it's
-	// worth it, as the check for "the first time" incurs cache misses
-	// and other ways of making this run only once are more involved.
-	mach_timebase_info_data_t timebase_info;
+        if (!supported) {
+                // we could make this `__thread static` and read it only once,                                 
+                // not sure it's worth it, since the check for "the first time"                                
+                // introduces potential cache misses and other ways of making this                             
+                // run only once are more involved.                                                            
+                mach_timebase_info_data_t time_base_info;
 
-	// mach_continuous_time() is a better option, but it's only
-	// available since MacOS 10.12, for which we use clock_gettime().
-	uint64_t absolute_time = mach_absolute_time();
-    
-        mach_timebase_info(&timebase_info);
+                // mach_continuous_time() is a better option, but it's only                                    
+                // available since MacOS 10.12, for which we already use clock_gettime().                      
+                uint64_t absolute_time = mach_absolute_time();
 
-        return ((absolute_time * timebase_info.numer) / timebase_info.denom) / 10000000;
-	
-#else
+                mach_timebase_info(&time_base_info);
 
-	return via_clock_gettime();
+                return ((absolute_time * time_base_info.numer) / time_base_info.denom) / 10000000;
+        }
+#endif
 
-#endif	
+        if (clock_gettime(NNG_USE_CLOCKID, &ts) != 0) {
+                // This should never ever occur.                                                               
+                nni_panic("clock_gettime failed: %s", strerror(errno));
+        }
+
+        msec = ts.tv_sec;
+        msec *= 1000;
+        msec += (ts.tv_nsec / 1000000);
+        return (msec);
 }
 
 void
