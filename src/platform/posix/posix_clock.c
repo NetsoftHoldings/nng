@@ -33,15 +33,15 @@ nni_clock(void)
 
 #if __APPLE__
 
-	int supported = 0;
+	int has_clock_gettime = 0;
 
 #if defined(MAC_OS_X_VERSION_10_12) && __has_builtin(__builtin_available)
 	if (__builtin_available(macOS 10.12, *)) {
-		supported = 1;
+		has_clock_gettime = 1;
 	}
 #endif
 
-	if (!supported) {
+	if (!has_clock_gettime) {
 		// we could make this `__thread static` and read it only once,                                 
 		// not sure it's worth it, since the check for "the first time"                                
 		// introduces potential cache misses and other ways of making this                             
