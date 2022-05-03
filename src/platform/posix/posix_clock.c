@@ -59,7 +59,7 @@ nni_clock(void)
 #endif
 
 	if (clock_gettime(NNG_USE_CLOCKID, &ts) != 0) {
-		// This should never ever occur.                                                               
+		// This should never ever occur.
 		nni_panic("clock_gettime failed: %s", strerror(errno));
 	}
 
