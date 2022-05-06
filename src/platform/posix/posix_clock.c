@@ -31,7 +31,7 @@ nni_clock(void)
 	struct timespec ts;
 	nni_time        msec;
 
-#if __APPLE__
+#ifdef __APPLE__
 
 	int has_clock_gettime = 0;
 
