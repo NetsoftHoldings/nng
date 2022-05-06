@@ -19,7 +19,7 @@
 
 #ifndef NNG_USE_GETTIMEOFDAY
 
-#if __APPLE__
+#ifdef __APPLE__
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #endif
