@@ -58,6 +58,7 @@ nni_clock(void)
 	}
 #endif
 
+#if !defined(__APPLE__) || defined(MAC_OS_X_VERSION_10_12)
 	if (clock_gettime(NNG_USE_CLOCKID, &ts) != 0) {
 		// This should never ever occur.
 		nni_panic("clock_gettime failed: %s", strerror(errno));
@@ -67,6 +68,7 @@ nni_clock(void)
 	msec *= 1000;
 	msec += (ts.tv_nsec / 1000000);
 	return (msec);
+#endif
 }
 
 void
