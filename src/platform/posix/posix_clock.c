@@ -19,6 +19,7 @@
 
 #ifndef NNG_USE_GETTIMEOFDAY
 
+#ifndef __APPLE__
 // Use POSIX realtime stuff
 nni_time
 nni_clock(void)
@@ -36,6 +37,30 @@ nni_clock(void)
 	msec += (ts.tv_nsec / 1000000);
 	return (msec);
 }
+#else
+// Yes, it's weird, we do use `gettimeofday()` even though it's not defined to be used.
+// This is a temporary measure, since `NNG_USE_CLOCKID` was `REALTIME`, which on Mac
+// _is_ the same as `gettimeofday()`, so, the effect is the same, actually, and we avoid
+// the use of clock_gettime() which is not supported on older Mac OSes.
+#include <sys/time.h>
+
+nni_time
+nni_clock(void)
+{
+	nni_time ms;
+
+	struct timeval tv;
+
+	if (gettimeofday(&tv, NULL) != 0) {
+		nni_panic("gettimeofday failed: %s", strerror(errno));
+	}
+
+	ms = tv.tv_sec;
+	ms *= 1000;
+	ms += (tv.tv_usec / 1000);
+	return (ms);
+}
+#endif
 
 void
 nni_msleep(nni_duration ms)
